@@ -32,24 +32,24 @@ public class OrderService {
 
 	@Transactional
 	public OrderResponse create(OrderCreateRequest request) {
-		if (request.getItems() == null || request.getItems().isEmpty()) {
+		if (request.items() == null || request.items().isEmpty()) {
 			throw new ApiException(ErrorCode.INVALID_REQUEST, "주문 상품이 비어 있습니다.");
 		}
 
 		Order order = new Order();
-		for (OrderItemRequest itemRequest : request.getItems()) {
-			if (itemRequest.getQuantity() <= 0) {
+		for (OrderItemRequest itemRequest : request.items()) {
+			if (itemRequest.quantity() <= 0) {
 				throw new ApiException(ErrorCode.INVALID_REQUEST, "주문 수량은 1 이상이어야 합니다.");
 			}
-			Product product = productRepository.findByIdForUpdate(itemRequest.getProductId())
+			Product product = productRepository.findByIdForUpdate(itemRequest.productId())
 					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
-			if (product.getStockQuantity() < itemRequest.getQuantity()) {
+			if (product.getStockQuantity() < itemRequest.quantity()) {
 				throw new ApiException(ErrorCode.OUT_OF_STOCK, "재고가 부족합니다.");
 			}
 			OrderItem item = new OrderItem();
 			item.setOrder(order);
 			item.setProduct(product);
-			item.setQuantity(itemRequest.getQuantity());
+			item.setQuantity(itemRequest.quantity());
 			item.setUnitPrice(product.getPrice());
 			order.getItems().add(item);
 		}
@@ -60,13 +60,13 @@ public class OrderService {
 
 	@Transactional
 	public OrderResponse updateStatus(Long id, OrderStatusUpdateRequest request) {
-		if (request.getStatus() == null) {
+		if (request.status() == null) {
 			throw new ApiException(ErrorCode.INVALID_REQUEST, "변경할 주문 상태가 필요합니다.");
 		}
 		Order order = orderRepository.findById(id)
 				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다."));
 		OrderStatus from = order.getStatus();
-		OrderStatus to = request.getStatus();
+		OrderStatus to = request.status();
 
 		if (!isValidTransition(from, to)) {
 			throw new ApiException(ErrorCode.INVALID_STATUS_CHANGE, "허용되지 않은 상태 변경입니다.");
@@ -135,19 +135,22 @@ public class OrderService {
 	}
 
 	private OrderResponse toResponse(Order order) {
-		OrderResponse response = new OrderResponse();
-		response.setId(order.getId());
-		response.setStatus(order.getStatus());
-		response.setCreatedAt(order.getCreatedAt());
-		response.setUpdatedAt(order.getUpdatedAt());
+		java.util.List<OrderItemResponse> items = new java.util.ArrayList<>();
 		for (OrderItem item : order.getItems()) {
-			OrderItemResponse itemResponse = new OrderItemResponse();
-			itemResponse.setProductId(item.getProduct().getId());
-			itemResponse.setProductName(item.getProduct().getName());
-			itemResponse.setPrice(item.getUnitPrice());
-			itemResponse.setQuantity(item.getQuantity());
-			response.getItems().add(itemResponse);
+			OrderItemResponse itemResponse = new OrderItemResponse(
+					item.getProduct().getId(),
+					item.getProduct().getName(),
+					item.getUnitPrice(),
+					item.getQuantity()
+			);
+			items.add(itemResponse);
 		}
-		return response;
+		return new OrderResponse(
+				order.getId(),
+				order.getStatus(),
+				order.getCreatedAt(),
+				order.getUpdatedAt(),
+				items
+		);
 	}
 }

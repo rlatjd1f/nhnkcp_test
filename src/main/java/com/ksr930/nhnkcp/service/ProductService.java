@@ -54,19 +54,19 @@ public class ProductService {
 	}
 
 	private void applyRequest(Product product, ProductRequest request) {
-		product.setName(request.getName());
-		product.setPrice(request.getPrice());
-		product.setStockQuantity(request.getStockQuantity());
-		product.setCategory(request.getCategory());
+		product.setName(request.name());
+		product.setPrice(request.price());
+		product.setStockQuantity(request.stockQuantity());
+		product.setCategory(request.category());
 	}
 
 	private ProductResponse toResponse(Product product) {
-		ProductResponse response = new ProductResponse();
-		response.setId(product.getId());
-		response.setName(product.getName());
-		response.setPrice(product.getPrice());
-		response.setStockQuantity(product.getStockQuantity());
-		response.setCategory(product.getCategory());
-		return response;
+		return new ProductResponse(
+				product.getId(),
+				product.getName(),
+				product.getPrice(),
+				product.getStockQuantity(),
+				product.getCategory()
+		);
 	}
 }
