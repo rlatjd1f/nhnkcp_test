@@ -111,6 +111,18 @@ class OrderServiceTests {
 		assertThat(responses.getContent()).isNotEmpty();
 	}
 
+	@Test
+	@DisplayName("완료 이전 취소는 재고에 영향을 주지 않는다")
+	void 완료_이전_취소는_재고에_영향을_주지_않는다() {
+		Product product = createProduct("과자", 1500, 4);
+		OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
+
+		orderService.updateStatus(order.id(), new OrderStatusUpdateRequest(OrderStatus.CANCELED));
+
+		Product updated = productRepository.findById(product.getId()).orElseThrow();
+		assertThat(updated.getStockQuantity()).isEqualTo(4);
+	}
+
 	private Product createProduct(String name, int price, int stock) {
 		Product product = new Product();
 		product.setName(name);
