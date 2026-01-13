@@ -49,8 +49,8 @@ class OrderControllerTests {
 		mockMvc.perform(post("/api/orders")
 						.contentType("application/json")
 						.content(objectMapper.writeValueAsBytes(request)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -65,7 +65,7 @@ class OrderControllerTests {
 						.contentType("application/json")
 						.content(objectMapper.writeValueAsBytes(request)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -75,7 +75,7 @@ class OrderControllerTests {
 
 		mockMvc.perform(get("/api/orders/1"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -87,7 +87,7 @@ class OrderControllerTests {
 
 		mockMvc.perform(get("/api/orders?page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[0].id").value(1L));
+				.andExpect(jsonPath("$.data.content[0].id").value(1L));
 	}
 
 	@Test
@@ -99,7 +99,7 @@ class OrderControllerTests {
 
 		mockMvc.perform(get("/api/orders?status=RECEIVED&page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[0].id").value(1L));
+				.andExpect(jsonPath("$.data.content[0].id").value(1L));
 
 		verify(orderService).listByStatus(eq(OrderStatus.RECEIVED), any(Pageable.class));
 	}
@@ -113,7 +113,7 @@ class OrderControllerTests {
 
 		mockMvc.perform(get("/api/orders?start=2025-01-01T00:00:00&end=2025-12-31T23:59:59&page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[0].id").value(1L));
+				.andExpect(jsonPath("$.data.content[0].id").value(1L));
 	}
 
 	@Test

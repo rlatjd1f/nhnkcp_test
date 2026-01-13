@@ -1,6 +1,7 @@
 package com.ksr930.nhnkcp.controller;
 
 import com.ksr930.nhnkcp.domain.order.OrderStatus;
+import com.ksr930.nhnkcp.dto.ApiResponse;
 import com.ksr930.nhnkcp.dto.order.OrderCreateRequest;
 import com.ksr930.nhnkcp.dto.order.OrderResponse;
 import com.ksr930.nhnkcp.dto.order.OrderStatusUpdateRequest;
@@ -30,25 +31,26 @@ public class OrderController {
 	}
 
 	@PostMapping
-	public ResponseEntity<OrderResponse> create(@Valid @RequestBody OrderCreateRequest request) {
-		return ResponseEntity.ok(orderService.create(request));
+	public ResponseEntity<ApiResponse<OrderResponse>> create(@Valid @RequestBody OrderCreateRequest request) {
+		return ResponseEntity.status(201)
+				.body(ApiResponse.success(201, orderService.create(request)));
 	}
 
 	@PatchMapping("/{id}/status")
-	public ResponseEntity<OrderResponse> updateStatus(
+	public ResponseEntity<ApiResponse<OrderResponse>> updateStatus(
 			@PathVariable Long id,
 			@Valid @RequestBody OrderStatusUpdateRequest request
 	) {
-		return ResponseEntity.ok(orderService.updateStatus(id, request));
+		return ResponseEntity.ok(ApiResponse.success(orderService.updateStatus(id, request)));
 	}
 
 	@GetMapping("/{id}")
-	public ResponseEntity<OrderResponse> get(@PathVariable Long id) {
-		return ResponseEntity.ok(orderService.get(id));
+	public ResponseEntity<ApiResponse<OrderResponse>> get(@PathVariable Long id) {
+		return ResponseEntity.ok(ApiResponse.success(orderService.get(id)));
 	}
 
 	@GetMapping
-	public ResponseEntity<Page<OrderResponse>> list(
+	public ResponseEntity<ApiResponse<Page<OrderResponse>>> list(
 			@RequestParam(required = false) OrderStatus status,
 			@RequestParam(required = false)
 			@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
@@ -57,11 +59,11 @@ public class OrderController {
 			Pageable pageable
 	) {
 		if (status != null) {
-			return ResponseEntity.ok(orderService.listByStatus(status, pageable));
+			return ResponseEntity.ok(ApiResponse.success(orderService.listByStatus(status, pageable)));
 		}
 		if (start != null && end != null) {
-			return ResponseEntity.ok(orderService.listByPeriod(start, end, pageable));
+			return ResponseEntity.ok(ApiResponse.success(orderService.listByPeriod(start, end, pageable)));
 		}
-		return ResponseEntity.ok(orderService.list(pageable));
+		return ResponseEntity.ok(ApiResponse.success(orderService.list(pageable)));
 	}
 }

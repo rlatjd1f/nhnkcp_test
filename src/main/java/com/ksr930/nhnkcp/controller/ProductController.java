@@ -1,6 +1,7 @@
 package com.ksr930.nhnkcp.controller;
 
 import com.ksr930.nhnkcp.domain.product.Category;
+import com.ksr930.nhnkcp.dto.ApiResponse;
 import com.ksr930.nhnkcp.dto.product.ProductRequest;
 import com.ksr930.nhnkcp.dto.product.ProductResponse;
 import com.ksr930.nhnkcp.service.ProductService;
@@ -27,31 +28,32 @@ public class ProductController {
 	}
 
 	@PostMapping
-	public ResponseEntity<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
-		return ResponseEntity.ok(productService.create(request));
+	public ResponseEntity<ApiResponse<ProductResponse>> create(@Valid @RequestBody ProductRequest request) {
+		return ResponseEntity.status(201)
+				.body(ApiResponse.success(201, productService.create(request)));
 	}
 
 	@PutMapping("/{id}")
-	public ResponseEntity<ProductResponse> update(
+	public ResponseEntity<ApiResponse<ProductResponse>> update(
 			@PathVariable Long id,
 			@Valid @RequestBody ProductRequest request
 	) {
-		return ResponseEntity.ok(productService.update(id, request));
+		return ResponseEntity.ok(ApiResponse.success(productService.update(id, request)));
 	}
 
 	@GetMapping("/{id}")
-	public ResponseEntity<ProductResponse> get(@PathVariable Long id) {
-		return ResponseEntity.ok(productService.get(id));
+	public ResponseEntity<ApiResponse<ProductResponse>> get(@PathVariable Long id) {
+		return ResponseEntity.ok(ApiResponse.success(productService.get(id)));
 	}
 
 	@GetMapping
-	public ResponseEntity<Page<ProductResponse>> list(
+	public ResponseEntity<ApiResponse<Page<ProductResponse>>> list(
 			@RequestParam(required = false) Category category,
 			Pageable pageable
 	) {
 		if (category == null) {
-			return ResponseEntity.ok(productService.list(pageable));
+			return ResponseEntity.ok(ApiResponse.success(productService.list(pageable)));
 		}
-		return ResponseEntity.ok(productService.listByCategory(category, pageable));
+		return ResponseEntity.ok(ApiResponse.success(productService.listByCategory(category, pageable)));
 	}
 }

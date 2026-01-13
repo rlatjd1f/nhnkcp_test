@@ -47,8 +47,8 @@ class ProductControllerTests {
 		mockMvc.perform(post("/api/products")
 						.contentType("application/json")
 						.content(objectMapper.writeValueAsBytes(request)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -62,7 +62,7 @@ class ProductControllerTests {
 						.contentType("application/json")
 						.content(objectMapper.writeValueAsBytes(request)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -72,7 +72,7 @@ class ProductControllerTests {
 
 		mockMvc.perform(get("/api/products/1"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.id").value(1L));
+				.andExpect(jsonPath("$.data.id").value(1L));
 	}
 
 	@Test
@@ -84,7 +84,7 @@ class ProductControllerTests {
 
 		mockMvc.perform(get("/api/products?page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[0].id").value(1L));
+				.andExpect(jsonPath("$.data.content[0].id").value(1L));
 	}
 
 	@Test
@@ -96,7 +96,7 @@ class ProductControllerTests {
 
 		mockMvc.perform(get("/api/products?category=BEVERAGE&page=0&size=10"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.content[0].id").value(1L));
+				.andExpect(jsonPath("$.data.content[0].id").value(1L));
 
 		verify(productService).listByCategory(eq(Category.BEVERAGE), any(Pageable.class));
 	}
