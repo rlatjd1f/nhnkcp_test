@@ -47,6 +47,7 @@ Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
 ### 인덱스 및 쿼리 최적화
 - 주문 데이터가 증가하면 인덱스(주문 상태, 생성일) 추가와 읽기 전용 쿼리 최적화가 필요합니다.
+- 조회 패턴을 기준으로 `orders(status, created_at)` 복합 인덱스와 `orders(created_at)` 인덱스를 추가했습니다.
 
 ### 캐시/비동기 개선
 - 자주 조회되는 목록은 캐시 적용(예: 상태별 조회)과 비동기 집계로 응답 시간을 개선할 수 있습니다.

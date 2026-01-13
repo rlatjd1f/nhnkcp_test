@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -21,7 +22,13 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "orders")
+@Table(
+		name = "orders",
+		indexes = {
+				@Index(name = "idx_orders_status_created_at", columnList = "status, created_at"),
+				@Index(name = "idx_orders_created_at", columnList = "created_at")
+		}
+)
 public class Order {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
