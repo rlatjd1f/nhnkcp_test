@@ -110,17 +110,17 @@ public class OrderService {
 
 	@Transactional(readOnly = true)
 	public Page<OrderResponse> list(Pageable pageable) {
-		return orderRepository.findAllWithItems(pageable).map(this::toResponse);
+		return orderRepository.findAll(pageable).map(this::toResponse);
 	}
 
 	@Transactional(readOnly = true)
 	public Page<OrderResponse> listByStatus(OrderStatus status, Pageable pageable) {
-		return orderRepository.findAllByStatusWithItems(status, pageable).map(this::toResponse);
+		return orderRepository.findAllByStatus(status, pageable).map(this::toResponse);
 	}
 
 	@Transactional(readOnly = true)
 	public Page<OrderResponse> listByPeriod(LocalDateTime start, LocalDateTime end, Pageable pageable) {
-		return orderRepository.findAllByCreatedAtBetweenWithItems(start, end, pageable).map(this::toResponse);
+		return orderRepository.findAllByCreatedAtBetween(start, end, pageable).map(this::toResponse);
 	}
 
 	private OrderResponse toResponse(Order order) {
