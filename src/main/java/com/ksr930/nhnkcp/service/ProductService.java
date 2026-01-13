@@ -31,7 +31,7 @@ public class ProductService {
 	@Transactional
 	public ProductResponse update(Long id, ProductRequest request) {
 		Product product = productRepository.findById(id)
-				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
+				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		applyRequest(product, request);
 		return toResponse(product);
 	}
@@ -39,7 +39,7 @@ public class ProductService {
 	@Transactional(readOnly = true)
 	public ProductResponse get(Long id) {
 		Product product = productRepository.findById(id)
-				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
+				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return toResponse(product);
 	}
 

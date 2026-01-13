@@ -12,9 +12,13 @@ import com.ksr930.nhnkcp.dto.order.OrderStatusUpdateRequest;
 import com.ksr930.nhnkcp.exception.ApiException;
 import com.ksr930.nhnkcp.exception.ErrorCode;
 import com.ksr930.nhnkcp.repository.OrderRepository;
-import com.ksr930.nhnkcp.repository.ProductRepository;
+import com.ksr930.nhnkcp.service.status.OrderStatusHandler;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,34 +27,51 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OrderService {
 	private final OrderRepository orderRepository;
-	private final ProductRepository productRepository;
+	private final Map<OrderStatus, OrderStatusHandler> statusHandlers;
+	private final StockService stockService;
 
-	public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
+	public OrderService(
+			OrderRepository orderRepository,
+			List<OrderStatusHandler> handlers,
+			StockService stockService
+	) {
 		this.orderRepository = orderRepository;
-		this.productRepository = productRepository;
+		this.statusHandlers = handlers.stream()
+				.collect(Collectors.toUnmodifiableMap(OrderStatusHandler::status, Function.identity()));
+		this.stockService = stockService;
 	}
 
 	@Transactional
 	public OrderResponse create(OrderCreateRequest request) {
 		if (request.items() == null || request.items().isEmpty()) {
-			throw new ApiException(ErrorCode.INVALID_REQUEST, "주문 상품이 비어 있습니다.");
+			throw new ApiException(ErrorCode.INVALID_REQUEST);
+		}
+
+		Map<Long, Integer> quantityByProductId = new HashMap<>();
+		for (OrderItemRequest itemRequest : request.items()) {
+			if (itemRequest.quantity() <= 0) {
+				throw new ApiException(ErrorCode.INVALID_REQUEST);
+			}
+			quantityByProductId.merge(itemRequest.productId(), itemRequest.quantity(), Integer::sum);
 		}
 
 		Order order = new Order();
-		for (OrderItemRequest itemRequest : request.items()) {
-			if (itemRequest.quantity() <= 0) {
-				throw new ApiException(ErrorCode.INVALID_REQUEST, "주문 수량은 1 이상이어야 합니다.");
-			}
-			Product product = productRepository.findByIdForUpdate(itemRequest.productId())
-					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
-			if (product.getStockQuantity() < itemRequest.quantity()) {
-				throw new ApiException(ErrorCode.OUT_OF_STOCK, "재고가 부족합니다.");
+		List<Long> sortedProductIds = quantityByProductId.keySet()
+				.stream()
+				.sorted()
+				.collect(Collectors.toList());
+
+		for (Long productId : sortedProductIds) {
+			Product product = stockService.getProduct(productId);
+			int quantity = quantityByProductId.get(productId);
+			if (product.getStockQuantity() < quantity) {
+				throw new ApiException(ErrorCode.OUT_OF_STOCK);
 			}
 			OrderItem item = new OrderItem();
 			item.setOrder(order);
 			item.setProduct(product);
-			item.setQuantity(itemRequest.quantity());
-			item.setUnitPrice(product.getPrice());
+			item.setQuantity(quantity);
+			item.setUnitPrice(item.getProduct().getPrice());
 			order.getItems().add(item);
 		}
 
@@ -61,23 +82,19 @@ public class OrderService {
 	@Transactional
 	public OrderResponse updateStatus(Long id, OrderStatusUpdateRequest request) {
 		if (request.status() == null) {
-			throw new ApiException(ErrorCode.INVALID_REQUEST, "변경할 주문 상태가 필요합니다.");
+			throw new ApiException(ErrorCode.INVALID_REQUEST);
 		}
 		Order order = orderRepository.findById(id)
-				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다."));
+				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		OrderStatus from = order.getStatus();
 		OrderStatus to = request.status();
 
-		if (!isValidTransition(from, to)) {
-			throw new ApiException(ErrorCode.INVALID_STATUS_CHANGE, "허용되지 않은 상태 변경입니다.");
+		OrderStatusHandler handler = statusHandlers.get(from);
+		if (handler == null || !handler.canTransitionTo(to)) {
+			throw new ApiException(ErrorCode.INVALID_STATUS_CHANGE);
 		}
 
-		if (to == OrderStatus.COMPLETED) {
-			applyStockDecrease(order.getItems());
-		}
-		if (to == OrderStatus.CANCELED && from == OrderStatus.COMPLETED) {
-			applyStockRestore(order.getItems());
-		}
+		handler.onTransition(order, to);
 
 		order.setStatus(to);
 		order.setUpdatedAt(LocalDateTime.now());
@@ -86,8 +103,8 @@ public class OrderService {
 
 	@Transactional(readOnly = true)
 	public OrderResponse get(Long id) {
-		Order order = orderRepository.findById(id)
-				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다."));
+		Order order = orderRepository.findByIdWithItems(id)
+				.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND));
 		return toResponse(order);
 	}
 
@@ -104,34 +121,6 @@ public class OrderService {
 	@Transactional(readOnly = true)
 	public Page<OrderResponse> listByPeriod(LocalDateTime start, LocalDateTime end, Pageable pageable) {
 		return orderRepository.findAllByCreatedAtBetweenWithItems(start, end, pageable).map(this::toResponse);
-	}
-
-	private void applyStockDecrease(List<OrderItem> items) {
-		for (OrderItem item : items) {
-			Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
-					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
-			if (product.getStockQuantity() < item.getQuantity()) {
-				throw new ApiException(ErrorCode.OUT_OF_STOCK, "재고가 부족합니다.");
-			}
-			product.setStockQuantity(product.getStockQuantity() - item.getQuantity());
-		}
-	}
-
-	private void applyStockRestore(List<OrderItem> items) {
-		for (OrderItem item : items) {
-			Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
-					.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "상품을 찾을 수 없습니다."));
-			product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-		}
-	}
-
-	private boolean isValidTransition(OrderStatus from, OrderStatus to) {
-		return switch (from) {
-			case PENDING -> to == OrderStatus.RECEIVED || to == OrderStatus.CANCELED;
-			case RECEIVED -> to == OrderStatus.COMPLETED || to == OrderStatus.CANCELED;
-			case COMPLETED -> to == OrderStatus.CANCELED;
-			case CANCELED -> false;
-		};
 	}
 
 	private OrderResponse toResponse(Order order) {

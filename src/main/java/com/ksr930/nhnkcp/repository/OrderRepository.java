@@ -33,4 +33,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 			@Param("end") LocalDateTime end,
 			Pageable pageable
 	);
+
+	@Query("select distinct o from Order o left join fetch o.items i left join fetch i.product where o.id = :id")
+	java.util.Optional<Order> findByIdWithItems(@Param("id") Long id);
 }
