@@ -40,6 +40,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("상품을 등록한다")
 	void 상품을_등록한다() throws Exception {
+		// 테스트 대상: ProductController#create, 의도: 요청 본문 바인딩 및 201 응답 검증
 		ProductRequest request = new ProductRequest("콜라", 1000, 5, Category.BEVERAGE);
 
 		when(productService.create(any(ProductRequest.class))).thenReturn(productResponse(1L));
@@ -54,6 +55,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("상품을 수정한다")
 	void 상품을_수정한다() throws Exception {
+		// 테스트 대상: ProductController#update, 의도: PUT 요청 처리 및 응답 검증
 		ProductRequest request = new ProductRequest("제로콜라", 1200, 4, Category.BEVERAGE);
 
 		when(productService.update(eq(1L), any(ProductRequest.class))).thenReturn(productResponse(1L));
@@ -68,6 +70,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("상품 단건을 조회한다")
 	void 상품을_단건_조회한다() throws Exception {
+		// 테스트 대상: ProductController#get, 의도: 단건 조회 응답 검증
 		when(productService.get(1L)).thenReturn(productResponse(1L));
 
 		mockMvc.perform(get("/api/products/1"))
@@ -78,6 +81,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("상품 목록을 조회한다")
 	void 상품_목록을_조회한다() throws Exception {
+		// 테스트 대상: ProductController#list, 의도: 페이징 목록 조회 응답 검증
 		PageImpl<ProductResponse> page =
 				new PageImpl<>(List.of(productResponse(1L)), PageRequest.of(0, 10), 1);
 		when(productService.list(any(Pageable.class))).thenReturn(page);
@@ -90,6 +94,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("카테고리별 상품 목록을 조회한다")
 	void 카테고리별_상품_목록을_조회한다() throws Exception {
+		// 테스트 대상: ProductController#list (category 필터), 의도: category 파라미터 분기 검증
 		PageImpl<ProductResponse> page =
 				new PageImpl<>(List.of(productResponse(1L)), PageRequest.of(0, 10), 1);
 		when(productService.listByCategory(eq(Category.BEVERAGE), any(Pageable.class))).thenReturn(page);
@@ -104,6 +109,7 @@ class ProductControllerTests {
 	@Test
 	@DisplayName("상품 등록 요청이 잘못되면 실패한다")
 	void 상품_등록_요청이_잘못되면_실패한다() throws Exception {
+		// 테스트 대상: ProductController#create, 의도: 유효성 실패 시 400 응답 검증
 		mockMvc.perform(post("/api/products")
 						.contentType("application/json")
 						.content("{}"))

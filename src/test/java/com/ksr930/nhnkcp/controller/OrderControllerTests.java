@@ -42,6 +42,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("주문을 생성한다")
 	void 주문을_생성한다() throws Exception {
+		// 테스트 대상: OrderController#create, 의도: 요청 본문 바인딩 및 201 응답 검증
 		OrderCreateRequest request = new OrderCreateRequest(List.of(new OrderItemRequest(1L, 2)));
 
 		when(orderService.create(any(OrderCreateRequest.class))).thenReturn(orderResponse(1L));
@@ -56,6 +57,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("주문 상태를 변경한다")
 	void 주문_상태를_변경한다() throws Exception {
+		// 테스트 대상: OrderController#updateStatus, 의도: PATCH 요청 처리 및 응답 검증
 		OrderStatusUpdateRequest request = new OrderStatusUpdateRequest(OrderStatus.RECEIVED);
 
 		when(orderService.updateStatus(eq(1L), any(OrderStatusUpdateRequest.class)))
@@ -71,6 +73,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("주문 단건을 조회한다")
 	void 주문을_단건_조회한다() throws Exception {
+		// 테스트 대상: OrderController#get, 의도: 단건 조회 응답 검증
 		when(orderService.get(1L)).thenReturn(orderResponse(1L));
 
 		mockMvc.perform(get("/api/orders/1"))
@@ -81,6 +84,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("주문 목록을 조회한다")
 	void 주문_목록을_조회한다() throws Exception {
+		// 테스트 대상: OrderController#list, 의도: 페이징 목록 조회 응답 검증
 		PageImpl<OrderResponse> page =
 				new PageImpl<>(List.of(orderResponse(1L)), PageRequest.of(0, 10), 1);
 		when(orderService.list(any(Pageable.class))).thenReturn(page);
@@ -93,6 +97,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("상태별 주문 목록을 조회한다")
 	void 상태별_주문_목록을_조회한다() throws Exception {
+		// 테스트 대상: OrderController#list (status 필터), 의도: status 파라미터 분기 검증
 		PageImpl<OrderResponse> page =
 				new PageImpl<>(List.of(orderResponse(1L)), PageRequest.of(0, 10), 1);
 		when(orderService.listByStatus(eq(OrderStatus.RECEIVED), any(Pageable.class))).thenReturn(page);
@@ -107,6 +112,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("기간별 주문 목록을 조회한다")
 	void 기간별_주문_목록을_조회한다() throws Exception {
+		// 테스트 대상: OrderController#list (기간 필터), 의도: start/end 파라미터 분기 검증
 		PageImpl<OrderResponse> page =
 				new PageImpl<>(List.of(orderResponse(1L)), PageRequest.of(0, 10), 1);
 		when(orderService.listByPeriod(any(), any(), any(Pageable.class))).thenReturn(page);
@@ -119,6 +125,7 @@ class OrderControllerTests {
 	@Test
 	@DisplayName("주문 생성 요청이 잘못되면 실패한다")
 	void 주문_생성_요청이_잘못되면_실패한다() throws Exception {
+		// 테스트 대상: OrderController#create, 의도: 유효성 실패 시 400 응답 검증
 		mockMvc.perform(post("/api/orders")
 						.contentType("application/json")
 						.content("{\"items\":[]}"))

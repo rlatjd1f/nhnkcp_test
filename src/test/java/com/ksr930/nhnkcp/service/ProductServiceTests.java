@@ -27,6 +27,7 @@ class ProductServiceTests {
 	@Test
 	@DisplayName("상품을 등록한다")
 	void 상품을_등록한다() {
+		// 테스트 대상: ProductService#create, 의도: 상품 등록 결과 매핑 검증
 		ProductRequest request = new ProductRequest("라면", 1500, 20, Category.FOOD);
 
 		ProductResponse response = productService.create(request);
@@ -41,6 +42,7 @@ class ProductServiceTests {
 	@Test
 	@DisplayName("상품을 수정한다")
 	void 상품을_수정한다() {
+		// 테스트 대상: ProductService#update, 의도: 수정 반영 및 응답 값 검증
 		Product product = createProduct("주스", 2000, 5, Category.BEVERAGE);
 
 		ProductRequest request = new ProductRequest("오렌지주스", 2500, 7, Category.BEVERAGE);
@@ -55,6 +57,7 @@ class ProductServiceTests {
 	@Test
 	@DisplayName("카테고리별 상품 목록을 조회한다")
 	void 카테고리별_목록을_조회한다() {
+		// 테스트 대상: ProductService#listByCategory, 의도: 카테고리 필터링 검증
 		createProduct("티셔츠", 10000, 3, Category.FASHION);
 		createProduct("청바지", 20000, 2, Category.FASHION);
 		createProduct("스피커", 50000, 1, Category.ELECTRONICS);

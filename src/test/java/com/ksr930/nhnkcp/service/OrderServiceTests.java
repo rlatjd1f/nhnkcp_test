@@ -43,11 +43,12 @@ class OrderServiceTests {
 		productRepository.deleteAll();
 	}
 
-    @Test
-    @DisplayName("주문 완료 시 재고가 차감된다")
-    void 주문_완료_시_재고가_차감된다() {
-        Product product = createProduct("콜라", 1000, 5);
-        OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
+	@Test
+	@DisplayName("주문 완료 시 재고가 차감된다")
+	void 주문_완료_시_재고가_차감된다() {
+		// 테스트 대상: OrderService#updateStatus, 의도: COMPLETED 전이 시 재고 차감 검증
+		Product product = createProduct("콜라", 1000, 5);
+		OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
 
         orderService.updateStatus(order.id(), new OrderStatusUpdateRequest(OrderStatus.RECEIVED));
 
@@ -57,11 +58,12 @@ class OrderServiceTests {
         assertThat(updated.getStockQuantity()).isEqualTo(3);
     }
 
-    @Test
-    @DisplayName("완료된 주문을 취소하면 재고가 복구된다")
-    void 완료된_주문을_취소하면_재고가_복구된다() {
-        Product product = createProduct("커피", 2000, 3);
-        OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
+	@Test
+	@DisplayName("완료된 주문을 취소하면 재고가 복구된다")
+	void 완료된_주문을_취소하면_재고가_복구된다() {
+		// 테스트 대상: OrderService#updateStatus, 의도: COMPLETED -> CANCELED 전이 시 재고 복구 검증
+		Product product = createProduct("커피", 2000, 3);
+		OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
 
         orderService.updateStatus(order.id(), new OrderStatusUpdateRequest(OrderStatus.RECEIVED));
         orderService.updateStatus(order.id(), new OrderStatusUpdateRequest(OrderStatus.COMPLETED));
@@ -71,31 +73,34 @@ class OrderServiceTests {
         assertThat(updated.getStockQuantity()).isEqualTo(3);
     }
 
-    @Test
-    @DisplayName("재고 부족 시 주문 생성이 실패한다")
-    void 재고가_부족하면_주문_생성이_실패한다() {
-        Product product = createProduct("샌드위치", 5000, 1);
+	@Test
+	@DisplayName("재고 부족 시 주문 생성이 실패한다")
+	void 재고가_부족하면_주문_생성이_실패한다() {
+		// 테스트 대상: OrderService#create, 의도: 재고 부족 예외 처리 검증
+		Product product = createProduct("샌드위치", 5000, 1);
 
         assertThatThrownBy(() -> orderService.create(createOrderRequest(product.getId(), 2)))
                 .isInstanceOf(ApiException.class);
     }
 
-    @Test
-    @DisplayName("존재하지 않는 상품 주문은 실패한다")
-    void 존재하지_않는_상품_주문은_실패한다() {
-        assertThatThrownBy(() -> orderService.create(createOrderRequest(9999L, 1)))
-                .isInstanceOf(ApiException.class)
+	@Test
+	@DisplayName("존재하지 않는 상품 주문은 실패한다")
+	void 존재하지_않는_상품_주문은_실패한다() {
+		// 테스트 대상: OrderService#create, 의도: 없는 상품 주문 시 NOT_FOUND 예외 검증
+		assertThatThrownBy(() -> orderService.create(createOrderRequest(9999L, 1)))
+				.isInstanceOf(ApiException.class)
                 .satisfies(exception -> {
                     ApiException apiException = (ApiException) exception;
                     assertThat(apiException.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
                 });
     }
 
-    @Test
-    @DisplayName("잘못된 상태 변경은 실패한다")
-    void 잘못된_상태_변경은_실패한다() {
-        Product product = createProduct("케이크", 12000, 2);
-        OrderResponse order = orderService.create(createOrderRequest(product.getId(), 1));
+	@Test
+	@DisplayName("잘못된 상태 변경은 실패한다")
+	void 잘못된_상태_변경은_실패한다() {
+		// 테스트 대상: OrderService#updateStatus, 의도: 허용되지 않은 상태 전이 차단 검증
+		Product product = createProduct("케이크", 12000, 2);
+		OrderResponse order = orderService.create(createOrderRequest(product.getId(), 1));
 
         assertThatThrownBy(() -> orderService.updateStatus(
                 order.id(),
@@ -104,11 +109,12 @@ class OrderServiceTests {
                 .isInstanceOf(ApiException.class);
     }
 
-    @Test
-    @DisplayName("상태별 주문 목록을 조회한다")
-    void 상태별_주문_목록을_조회한다() {
-        Product product = createProduct("도넛", 3000, 5);
-        orderService.create(createOrderRequest(product.getId(), 1));
+	@Test
+	@DisplayName("상태별 주문 목록을 조회한다")
+	void 상태별_주문_목록을_조회한다() {
+		// 테스트 대상: OrderService#listByStatus, 의도: 상태 필터링 조회 검증
+		Product product = createProduct("도넛", 3000, 5);
+		orderService.create(createOrderRequest(product.getId(), 1));
 
         OrderResponse receivedOrder = orderService.create(createOrderRequest(product.getId(), 1));
         orderService.updateStatus(receivedOrder.id(), new OrderStatusUpdateRequest(OrderStatus.RECEIVED));
@@ -120,11 +126,12 @@ class OrderServiceTests {
         assertThat(responses.getContent().get(0).id()).isEqualTo(receivedOrder.id());
     }
 
-    @Test
-    @DisplayName("기간별 주문 목록을 조회한다")
-    void 기간별_주문_목록을_조회한다() {
-        Product product = createProduct("샐러드", 8000, 5);
-        orderService.create(createOrderRequest(product.getId(), 1));
+	@Test
+	@DisplayName("기간별 주문 목록을 조회한다")
+	void 기간별_주문_목록을_조회한다() {
+		// 테스트 대상: OrderService#listByPeriod, 의도: 기간 필터링 조회 검증
+		Product product = createProduct("샐러드", 8000, 5);
+		orderService.create(createOrderRequest(product.getId(), 1));
 
         LocalDateTime start = LocalDateTime.now().minusMinutes(1);
         LocalDateTime end = LocalDateTime.now().plusMinutes(1);
@@ -134,11 +141,12 @@ class OrderServiceTests {
         assertThat(responses.getContent()).isNotEmpty();
     }
 
-    @Test
-    @DisplayName("완료 이전 취소는 재고에 영향을 주지 않는다")
-    void 완료_이전_취소는_재고에_영향을_주지_않는다() {
-        Product product = createProduct("과자", 1500, 4);
-        OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
+	@Test
+	@DisplayName("완료 이전 취소는 재고에 영향을 주지 않는다")
+	void 완료_이전_취소는_재고에_영향을_주지_않는다() {
+		// 테스트 대상: OrderService#updateStatus, 의도: PENDING -> CANCELED 시 재고 미변경 검증
+		Product product = createProduct("과자", 1500, 4);
+		OrderResponse order = orderService.create(createOrderRequest(product.getId(), 2));
 
         orderService.updateStatus(order.id(), new OrderStatusUpdateRequest(OrderStatus.CANCELED));
 
