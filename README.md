@@ -25,13 +25,16 @@
 | GET | `/api/orders/{id}` | 주문 단건 조회 |
 | GET | `/api/orders` | 주문 목록 조회(상태/기간/페이징 포함) |
 
-## 동시성 및 트랜잭션
-- 상품 재고 갱신 시 `PESSIMISTIC_WRITE` 락을 사용해 동시 주문에서 재고 정합성을 유지합니다.
-- 주문 생성과 상태 변경은 트랜잭션 경계 내에서 처리해 중간 실패 시 롤백되도록 구성했습니다.
-- 재고 조회/갱신 시점에 비관적 락을 적용한 코드 예시는 아래와 같습니다.
-- 락 대기 시간을 3초로 제한해 무한 대기를 방지했습니다.
-- 다건 주문 시 데드락을 피하기 위해 상품 ID를 오름차순으로 정렬한 뒤 락을 획득합니다.
-- 락 타임아웃으로 실패하는 경우 `CONCURRENCY_FAILURE`로 일관된 에러 응답을 반환합니다.
+## 동시성 및 트랜잭션 전략
+
+**[핵심 전략] 비관적 락(Pessimistic Lock)과 데드락 방지**
+재고 차감과 같이 데이터 정합성이 최우선인 로직을 보호하기 위해 DB 레벨의 락을 적용했습니다.
+
+- **구현 내용:**
+  - **`PESSIMISTIC_WRITE` 적용:** `select ... for update` 쿼리를 통해 동시 주문 시 재고 정합성을 보장합니다.
+  - **데드락(Deadlock) 방지:** 다건 주문 시 교착 상태를 예방하기 위해 상품 ID를 오름차순으로 정렬한 후 순차적으로 락을 획득합니다.
+  - **Fail-Fast 전략:** 락 대기 시간을 **3초**(`jakarta.persistence.lock.timeout`)로 제한하여 무한 대기를 방지합니다.
+  - **예외 처리:** 락 타임아웃 발생 시 `PessimisticLockingFailureException`을 포착해 `CONCURRENCY_FAILURE`로 일관된 에러 응답을 반환합니다.
 
 ```java
 @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -40,25 +43,37 @@
 Optional<Product> findByIdForUpdate(@Param("id") Long id);
 ```
 
-## 성능 고려 및 개선안
+## 성능 최적화 및 확장성 고려
 
-### 페이징 기반 조회
-- 주문 목록/상태/기간 조회는 페이징을 기본으로 사용해 대량 데이터에서 메모리 사용을 제어합니다.
+대량의 주문 데이터를 효율적으로 처리하기 위해 다음과 같은 성능 최적화 기법을 적용했습니다.
 
-### 인덱스 및 쿼리 최적화
-- 주문 데이터가 증가하면 인덱스(주문 상태, 생성일) 추가와 읽기 전용 쿼리 최적화가 필요합니다.
-- 조회 패턴을 기준으로 `orders(status, created_at)` 복합 인덱스와 `orders(created_at)` 인덱스를 추가했습니다.
+#### A. N+1 문제 해결 및 페이징 최적화 (Batch Size)
+- **문제:** `@OneToMany` 관계에서 `Fetch Join`과 `Paging`을 함께 사용할 경우, Hibernate가 모든 데이터를 메모리에 로딩한 뒤 페이징 처리하여 **OOM 위험**이 있습니다.
+- **해결:** 컬렉션 조회 시 Fetch Join 대신 **`default_batch_fetch_size: 100`** 설정을 적용했습니다.
+    ```yaml
+    spring:
+      jpa:
+        properties:
+          hibernate:
+            default_batch_fetch_size: 100
+    ```
+- **효과:** `IN` 절을 통해 연관 데이터를 배치 로딩하면서도 메모리 효율적인 페이징 처리가 가능합니다.
 
-### 캐시/비동기 개선
-- 자주 조회되는 목록은 캐시 적용(예: 상태별 조회)과 비동기 집계로 응답 시간을 개선할 수 있습니다.
+#### B. 인덱스 설계 (Indexing)
+- **전략:** 주문 조회 패턴을 기준으로 인덱스를 구성했습니다.
+- **적용:**
+  - `idx_orders_status_created_at`: 상태별 조회 및 기간 정렬을 위한 복합 인덱스
+  - `idx_orders_created_at`: 기간별 조회 최적화
+- **복합 인덱스 컬럼 순서:** `WHERE status = ? ORDER BY created_at` 패턴에 맞춰 정렬해,
+  필터링 후 별도의 정렬을 최소화하고 빠르게 결과를 추출합니다.
+- **효과:** 대용량 데이터 조회 시 Full Table Scan을 방지하고 조회 속도를 보장합니다.
 
-### 배치 로딩
-- 주문 목록 조회는 `fetch join`을 피하고, 배치 로딩으로 N+1을 완화합니다.
-
-```yaml
-spring:
-  jpa:
-    properties:
-      hibernate:
-        default_batch_fetch_size: 100
-```
+#### C. 향후 개선 계획 (Future Work)
+1. **캐싱 및 비동기 처리**
+   - 자주 조회되는 데이터는 캐시를 적용해 DB 부하를 줄입니다.
+   - 무거운 집계 로직은 비동기 이벤트로 분리해 API 응답 속도를 개선합니다.
+2. **동시성 제어 고도화**
+   - **현재:** 데이터 무결성을 위해 `PESSIMISTIC_WRITE` 사용.
+   - **개선:** 충돌률에 따른 이원화 전략 검토.
+     - Low Contention: 낙관적 락(`@Version`)과 재시도 전략 적용.
+     - High Contention: 비관적 락 유지 또는 Redis 원자 연산으로 처리량 개선.
