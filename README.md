@@ -47,7 +47,7 @@ Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
 대량의 주문 데이터를 효율적으로 처리하기 위해 다음과 같은 성능 최적화 기법을 적용했습니다.
 
-#### A. N+1 문제 해결 및 페이징 최적화 (Batch Size)
+#### A. N+1 문제 해결 및 페이징 최적화
 - **문제:** `@OneToMany` 관계에서 `Fetch Join`과 `Paging`을 함께 사용할 경우, Hibernate가 모든 데이터를 메모리에 로딩한 뒤 페이징 처리하여 **OOM 위험**이 있습니다.
 - **해결:** 컬렉션 조회 시 Fetch Join 대신 **`default_batch_fetch_size: 100`** 설정을 적용했습니다.
     ```yaml
@@ -59,7 +59,7 @@ Optional<Product> findByIdForUpdate(@Param("id") Long id);
     ```
 - **효과:** `IN` 절을 통해 연관 데이터를 배치 로딩하면서도 메모리 효율적인 페이징 처리가 가능합니다.
 
-#### B. 인덱스 설계 (Indexing)
+#### B. 인덱스 설계
 - **전략:** 주문 조회 패턴을 기준으로 인덱스를 구성했습니다.
 - **적용:**
   - `idx_orders_status_created_at`: 상태별 조회 및 기간 정렬을 위한 복합 인덱스
@@ -68,11 +68,13 @@ Optional<Product> findByIdForUpdate(@Param("id") Long id);
   필터링 후 별도의 정렬을 최소화하고 빠르게 결과를 추출합니다.
 - **효과:** 대용량 데이터 조회 시 Full Table Scan을 방지하고 조회 속도를 보장합니다.
 
-#### C. 향후 개선 계획 (Future Work)
-1. **캐싱 및 비동기 처리**
-   - 자주 조회되는 데이터는 캐시를 적용해 DB 부하를 줄입니다.
-   - 무거운 집계 로직은 비동기 이벤트로 분리해 API 응답 속도를 개선합니다.
-2. **동시성 제어 고도화**
+#### C. 향후 개선 계획
+1. **캐싱 전략**
+   - **Global Cache:** 상품 상세 정보와 같이 변경이 잦지 않으면서 조회 빈도가 높은 데이터는 Redis와 **Spring Cache(@Cacheable)** 를 연동해 DB 부하를 분산시킵니다.
+   - **Local Cache:** 카테고리 정보 등 정적인 데이터는 Caffeine Cache를 적용해 네트워크 비용조차 없는 초고속 조회를 구현합니다.
+2. **비동기 이벤트 처리**
+   - 주문 완료 후의 '통계 집계'나 '알림 발송' 같은 부가 로직은 Spring Events로 결합도를 낮추고, Kafka(또는 RabbitMQ) 메시지 큐를 도입해 비동기로 처리하여 트랜잭션 응답 시간을 단축합니다.
+3. **동시성 제어 고도화**
    - **현재:** 데이터 무결성을 위해 `PESSIMISTIC_WRITE` 사용.
    - **개선:** 충돌률에 따른 이원화 전략 검토.
      - Low Contention: 낙관적 락(`@Version`)과 재시도 전략 적용.
